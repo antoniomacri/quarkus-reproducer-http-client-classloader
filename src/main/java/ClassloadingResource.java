@@ -1,0 +1,48 @@
+import io.quarkus.logging.Log;
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import org.eclipse.microprofile.context.ManagedExecutor;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.concurrent.CompletableFuture;
+
+@ApplicationScoped
+@Path("/test")
+public class ClassloadingResource {
+
+    @Inject
+    ManagedExecutor managedExecutor;
+
+    HttpClient httpClient;
+
+
+    @PostConstruct
+    void createHttpClient() {
+        this.httpClient = HttpClient.newBuilder()
+                .executor(managedExecutor)
+                .version(HttpClient.Version.HTTP_2)
+                .build();
+    }
+
+
+    @GET
+    @Produces({MediaType.TEXT_PLAIN})
+    public CompletableFuture<String> test() {
+        URI uri = URI.create("http://www.columbia.edu/~fdc/sample.html");
+        HttpRequest request = HttpRequest.newBuilder().GET().uri(uri).build();
+
+        Log.infof("classLoaderBefore=%s", Thread.currentThread().getContextClassLoader());
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString()).thenApplyAsync(response -> {
+            Log.infof("classLoaderAfter=%s", Thread.currentThread().getContextClassLoader());
+            return Thread.currentThread().getContextClassLoader().getClass().getName();
+        }, managedExecutor);
+    }
+}
