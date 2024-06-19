@@ -1,7 +1,6 @@
 import io.quarkus.logging.Log;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -18,7 +17,6 @@ import java.util.concurrent.CompletableFuture;
 @Path("/test")
 public class ClassloadingResource {
 
-    @Inject
     ManagedExecutor managedExecutor;
 
     HttpClient httpClient;
@@ -26,10 +24,16 @@ public class ClassloadingResource {
 
     @PostConstruct
     void createHttpClient() {
+        this.managedExecutor = ManagedExecutor.builder().build();
         this.httpClient = HttpClient.newBuilder()
                 .executor(managedExecutor)
                 .version(HttpClient.Version.HTTP_2)
                 .build();
+
+        managedExecutor.execute(() -> {
+            Log.infof("PostConstruct thread=%s", Thread.currentThread().hashCode());
+            Log.infof("PostConstruct classLoaderBefore=%s", Thread.currentThread().getContextClassLoader());
+        });
     }
 
 
@@ -41,6 +45,7 @@ public class ClassloadingResource {
 
         Log.infof("classLoaderBefore=%s", Thread.currentThread().getContextClassLoader());
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString()).thenApplyAsync(response -> {
+            Log.infof("thread=%s", Thread.currentThread().hashCode());
             Log.infof("classLoaderAfter=%s", Thread.currentThread().getContextClassLoader());
             return Thread.currentThread().getContextClassLoader().getClass().getName();
         }, managedExecutor);
