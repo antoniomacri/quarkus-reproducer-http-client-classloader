@@ -30,10 +30,11 @@ public class ClassloadingResource {
                 .version(HttpClient.Version.HTTP_2)
                 .build();
 
-        managedExecutor.execute(() -> {
+        managedExecutor.supplyAsync(() -> "").thenApplyAsync(response -> {
             Log.infof("PostConstruct thread=%s", Thread.currentThread().hashCode());
-            Log.infof("PostConstruct classLoaderBefore=%s", Thread.currentThread().getContextClassLoader());
-        });
+            Log.infof("PostConstruct classLoaderAfter=%s", Thread.currentThread().getContextClassLoader());
+            return Thread.currentThread().getContextClassLoader().getClass().getName();
+        }, managedExecutor);
     }
 
 
